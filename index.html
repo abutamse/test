@@ -1,220 +1,112 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Minecraft Lite iPad</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-
+<meta charset="UTF-8">
+<title>Mini Minecraft Touch Old iPad</title>
 <style>
-html,body{
-  margin:0;
-  padding:0;
-  overflow:hidden;
-  background:#87ceeb;
-  touch-action:none;
-  font-family:sans-serif;
-}
+body { margin:0; overflow:hidden; background:#87ceeb; }
+canvas { display:block; }
 
-/* Crosshair */
-#cross{
+#crosshair {
   position:absolute;
   top:50%;
   left:50%;
   transform:translate(-50%,-50%);
-  font-size:28px;
+  font-size:24px;
   color:white;
-  pointer-events:none;
+  user-select:none;
 }
 
-/* Joystick */
-#joy{
+#hotbar {
   position:absolute;
-  bottom:30px;
-  left:30px;
+  bottom:10px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:5px;
+  background:rgba(0,0,0,0.6);
+  padding:6px;
+  border-radius:6px;
+}
+
+#hotbar button {
+  padding:6px 10px;
+  color:white;
+  background:#333;
+  border:1px solid #666;
+  cursor:pointer;
+}
+#hotbar button.active { border:2px solid yellow; }
+
+#joystick-base {
+  position:absolute;
+  bottom:20px;
+  left:20px;
   width:120px;
   height:120px;
   border-radius:50%;
-  background:rgba(0,0,0,0.4);
-}
-#stick{
-  position:absolute;
-  width:50px;
-  height:50px;
-  border-radius:50%;
-  background:white;
-  left:35px;
-  top:35px;
+  background:rgba(0,0,0,0.3);
 }
 
-/* Buttons */
-.btn{
+#joystick-knob {
   position:absolute;
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:rgba(0,0,0,0.5);
+  left:30px;
+  top:30px;
+}
+
+#action-buttons {
+  position:absolute;
+  bottom:20px;
   right:20px;
-  width:80px;
-  height:50px;
-  background:rgba(0,0,0,0.6);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.action-btn {
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:rgba(0,0,0,0.5);
   color:white;
   text-align:center;
-  line-height:50px;
-  border-radius:10px;
+  line-height:60px;
   user-select:none;
 }
-#mine{ bottom:100px; }
-#build{ bottom:30px; }
+
+#jump-btn {
+  position:absolute;
+  bottom:160px;
+  left:40px;
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:rgba(0,0,0,0.5);
+  color:white;
+  text-align:center;
+  line-height:60px;
+  user-select:none;
+}
 </style>
 </head>
-
 <body>
 
-<div id="cross">+</div>
+<div id="crosshair">+</div>
+<div id="hotbar"></div>
 
-<div id="joy">
-  <div id="stick"></div>
+<div id="joystick-base">
+  <div id="joystick-knob"></div>
 </div>
 
-<div id="mine" class="btn">MINE</div>
-<div id="build" class="btn">BUILD</div>
+<div id="jump-btn">JUMP</div>
 
-<script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
+<div id="action-buttons"></div>
 
-<script>
-// ================= SCENE =================
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-
-const camera = new THREE.PerspectiveCamera(
-  75,
-  innerWidth/innerHeight,
-  0.1,
-  1000
-);
-camera.position.set(0,2,6);
-camera.rotation.order = "YXZ";
-
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth,innerHeight);
-document.body.appendChild(renderer.domElement);
-
-// ================= LIGHT =================
-scene.add(new THREE.AmbientLight(0xffffff,0.7));
-const sun = new THREE.DirectionalLight(0xffffff,0.8);
-sun.position.set(20,40,20);
-scene.add(sun);
-
-// ================= BLOCKS =================
-const blocks = [];
-
-function addBlock(x,y,z,color=0x55aa55){
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(1,1,1),
-    new THREE.MeshLambertMaterial({color})
-  );
-  mesh.position.set(x+0.5,y+0.5,z+0.5);
-  scene.add(mesh);
-  blocks.push({mesh,x,y,z});
-}
-
-// Boden
-for(let x=-15;x<=15;x++){
-  for(let z=-15;z<=15;z++){
-    addBlock(x,0,z);
-  }
-}
-
-// Testblock
-addBlock(0,1,0,0xff0000);
-
-// ================= LOOK (ruhig) =================
-let lookX=0, lookY=0;
-let lastX=null, lastY=null;
-
-document.addEventListener("touchstart",e=>{
-  lastX=e.touches[0].clientX;
-  lastY=e.touches[0].clientY;
-});
-document.addEventListener("touchmove",e=>{
-  const t=e.touches[0];
-  if(lastX===null)return;
-
-  lookX -= (t.clientX-lastX)*0.0015;
-  lookY -= (t.clientY-lastY)*0.0015;
-  lookY = Math.max(-1.2,Math.min(1.2,lookY));
-
-  lastX=t.clientX;
-  lastY=t.clientY;
-});
-
-// ================= JOYSTICK (leicht) =================
-const joy=document.getElementById("joy");
-const stick=document.getElementById("stick");
-let mx=0,mz=0;
-
-joy.addEventListener("touchmove",e=>{
-  const r=joy.getBoundingClientRect();
-  const t=e.touches[0];
-  const dx=t.clientX-(r.left+r.width/2);
-  const dy=t.clientY-(r.top+r.height/2);
-  const d=Math.min(40,Math.hypot(dx,dy));
-  const a=Math.atan2(dy,dx);
-
-  const power=d/40;
-  if(power<0.15){
-    mx=0; mz=0;
-  }else{
-    mx=Math.cos(a)*power*0.6;
-    mz=Math.sin(a)*power*0.6;
-  }
-
-  stick.style.left=35+mx*40+"px";
-  stick.style.top =35+mz*40+"px";
-});
-joy.addEventListener("touchend",()=>{
-  mx=mz=0;
-  stick.style.left="35px";
-  stick.style.top="35px";
-});
-
-// ================= RAYCAST =================
-const raycaster = new THREE.Raycaster();
-
-function getTarget(){
-  raycaster.setFromCamera({x:0,y:0},camera);
-  raycaster.far = 5;
-  const hits = raycaster.intersectObjects(blocks.map(b=>b.mesh));
-  if(!hits.length) return null;
-  return blocks.find(b=>b.mesh===hits[0].object);
-}
-
-// ================= ACTIONS =================
-document.getElementById("mine").ontouchstart=()=>{
-  const t=getTarget();
-  if(!t || t.y===0) return;
-  scene.remove(t.mesh);
-  blocks.splice(blocks.indexOf(t),1);
-};
-
-document.getElementById("build").ontouchstart=()=>{
-  const t=getTarget();
-  if(!t) return;
-  addBlock(t.x,t.y+1,t.z);
-};
-
-// ================= LOOP =================
-function animate(){
-  requestAnimationFrame(animate);
-
-  camera.rotation.y = lookX;
-  camera.rotation.x = lookY;
-
-  camera.position.x += mx*0.08;
-  camera.position.z += mz*0.08;
-
-  if(camera.position.y<2) camera.position.y=2;
-
-  renderer.render(scene,camera);
-}
-animate();
-</script>
-
+<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r149/build/three.min.js"></script>
+<script src="mine.js"></script>
 </body>
 </html>
