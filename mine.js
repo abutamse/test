@@ -3,9 +3,15 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({antialias:true, precision:'low'});
+const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 // ---------------- LIGHT ----------------
 scene.add(new THREE.AmbientLight(0xffffff,0.6));
@@ -15,12 +21,10 @@ scene.add(sun);
 
 // ---------------- BLOCKS ----------------
 const blocks = [];
-const BLOCK = 1;
 const colors = { grass:0x00ff00, dirt:0x8b4513, stone:0x808080 };
 
-// Nutze MeshBasicMaterial für alte Geräte
 function addBlock(x,y,z,type){
-  const geo = new THREE.BoxGeometry(BLOCK,BLOCK,BLOCK);
+  const geo = new THREE.BoxGeometry(1,1,1);
   const mat = new THREE.MeshBasicMaterial({color:colors[type]});
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(x+0.5, y+0.5, z+0.5);
@@ -28,14 +32,14 @@ function addBlock(x,y,z,type){
   blocks.push({mesh, x,y,z, type});
 }
 
-// ---------------- WORLD (klein für alte Geräte) ----------------
+// ---------------- WORLD ----------------
 for(let x=-5;x<=5;x++){
   for(let z=-5;z<=5;z++){
-    addBlock(x,0,z,'grass');
+    addBlock(x,0,z,'grass'); // Boden
   }
 }
 
-// Testwürfel in der Mitte zur Kontrolle
+// Testblock in der Mitte
 addBlock(0,1,0,'stone');
 
 // ---------------- INVENTORY & HOTBAR ----------------
@@ -153,11 +157,8 @@ function animate(){
   const forward = joystickPos.y;
   const right = joystickPos.x;
 
-  const dir = new THREE.Vector3(0,0,-1);
-  const side = new THREE.Vector3(1,0,0);
-
-  player.velocity.x += (dir.x*forward + side.x*right)*speed*delta;
-  player.velocity.z += (dir.z*forward + side.z*right)*speed*delta;
+  player.velocity.x += right*speed*delta;
+  player.velocity.z += -forward*speed*delta; // -forward, damit Joystick nach oben = vorwärts
 
   // Gravity
   player.velocity.y -= 9.8*delta;
@@ -174,8 +175,9 @@ function animate(){
 
   if(player.y<2){ player.velocity.y=0; player.y=2; player.canJump=true; }
 
+  // Kamera leicht nach unten, damit Boden sichtbar
   camera.position.set(player.x, player.y, player.z);
-  camera.lookAt(player.x, player.y, player.z-1);
+  camera.lookAt(player.x, player.y - 1, player.z - 5);
 
   player.velocity.multiplyScalar(0.9);
   renderer.render(scene,camera);
