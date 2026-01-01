@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>iPad Minecraft Test</title>
+<title>Minecraft Lite iPad</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
 <style>
@@ -12,20 +12,22 @@ html,body{
   overflow:hidden;
   background:#87ceeb;
   touch-action:none;
+  font-family:sans-serif;
 }
 
-/* DEBUG TEXT */
-#debug {
+/* Crosshair */
+#cross{
   position:absolute;
-  top:10px;
-  left:10px;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:28px;
   color:white;
-  font-size:14px;
-  z-index:10;
+  pointer-events:none;
 }
 
-/* JOYSTICK */
-#joy {
+/* Joystick */
+#joy{
   position:absolute;
   bottom:30px;
   left:30px;
@@ -34,7 +36,7 @@ html,body{
   border-radius:50%;
   background:rgba(0,0,0,0.4);
 }
-#stick {
+#stick{
   position:absolute;
   width:50px;
   height:50px;
@@ -43,98 +45,169 @@ html,body{
   left:35px;
   top:35px;
 }
+
+/* Buttons */
+.btn{
+  position:absolute;
+  right:20px;
+  width:80px;
+  height:50px;
+  background:rgba(0,0,0,0.6);
+  color:white;
+  text-align:center;
+  line-height:50px;
+  border-radius:10px;
+  user-select:none;
+}
+#mine{ bottom:100px; }
+#build{ bottom:30px; }
 </style>
 </head>
 
 <body>
 
-<div id="debug">JS geladen</div>
+<div id="cross">+</div>
 
 <div id="joy">
   <div id="stick"></div>
 </div>
 
-<!-- THREE.JS DIREKT VOM CDN -->
+<div id="mine" class="btn">MINE</div>
+<div id="build" class="btn">BUILD</div>
+
 <script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
 
 <script>
-document.getElementById("debug").innerText = "Three geladen";
-
-// ========= SCENE =========
+// ================= SCENE =================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
 const camera = new THREE.PerspectiveCamera(
   75,
-  window.innerWidth / window.innerHeight,
+  innerWidth/innerHeight,
   0.1,
   1000
 );
-camera.position.set(0, 3, 8);
+camera.position.set(0,2,6);
+camera.rotation.order = "YXZ";
 
-// ========= RENDERER =========
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// ========= LIGHT =========
-scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-const sun = new THREE.DirectionalLight(0xffffff, 1);
-sun.position.set(10,20,10);
+// ================= LIGHT =================
+scene.add(new THREE.AmbientLight(0xffffff,0.7));
+const sun = new THREE.DirectionalLight(0xffffff,0.8);
+sun.position.set(20,40,20);
 scene.add(sun);
 
-// ========= BLOCK =========
-const geo = new THREE.BoxGeometry(1,1,1);
-const mat = new THREE.MeshLambertMaterial({color:0x00ff00});
-const block = new THREE.Mesh(geo,mat);
-block.position.set(0,0.5,0);
-scene.add(block);
+// ================= BLOCKS =================
+const blocks = [];
 
-// EXTRA großer Boden (damit er NICHT zu übersehen ist)
-const floor = new THREE.Mesh(
-  new THREE.BoxGeometry(50,1,50),
-  new THREE.MeshLambertMaterial({color:0x228b22})
-);
-floor.position.y = -0.5;
-scene.add(floor);
+function addBlock(x,y,z,color=0x55aa55){
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(1,1,1),
+    new THREE.MeshLambertMaterial({color})
+  );
+  mesh.position.set(x+0.5,y+0.5,z+0.5);
+  scene.add(mesh);
+  blocks.push({mesh,x,y,z});
+}
 
-document.getElementById("debug").innerText = "Blöcke erstellt";
+// Boden
+for(let x=-15;x<=15;x++){
+  for(let z=-15;z<=15;z++){
+    addBlock(x,0,z);
+  }
+}
 
-// ========= JOYSTICK =========
-const joy = document.getElementById("joy");
-const stick = document.getElementById("stick");
-let mx = 0, mz = 0;
+// Testblock
+addBlock(0,1,0,0xff0000);
 
-joy.addEventListener("touchmove", e=>{
-  const r = joy.getBoundingClientRect();
-  const t = e.touches[0];
-  const dx = t.clientX - (r.left + r.width/2);
-  const dy = t.clientY - (r.top + r.height/2);
+// ================= LOOK =================
+let lookX=0, lookY=0;
+let lastX=null, lastY=null;
 
-  const d = Math.min(40, Math.hypot(dx,dy));
-  const a = Math.atan2(dy,dx);
+document.addEventListener("touchstart",e=>{
+  lastX=e.touches[0].clientX;
+  lastY=e.touches[0].clientY;
+});
+document.addEventListener("touchmove",e=>{
+  const t=e.touches[0];
+  if(lastX===null)return;
 
-  mx = Math.cos(a) * (d/40);
-  mz = Math.sin(a) * (d/40);
+  lookX -= (t.clientX-lastX)*0.003;
+  lookY -= (t.clientY-lastY)*0.003;
+  lookY = Math.max(-1.3,Math.min(1.3,lookY));
 
-  stick.style.left = 35 + mx*40 + "px";
-  stick.style.top  = 35 + mz*40 + "px";
+  lastX=t.clientX;
+  lastY=t.clientY;
 });
 
-joy.addEventListener("touchend", ()=>{
-  mx = mz = 0;
-  stick.style.left = "35px";
-  stick.style.top = "35px";
+// ================= JOYSTICK =================
+const joy=document.getElementById("joy");
+const stick=document.getElementById("stick");
+let mx=0,mz=0;
+
+joy.addEventListener("touchmove",e=>{
+  const r=joy.getBoundingClientRect();
+  const t=e.touches[0];
+  const dx=t.clientX-(r.left+r.width/2);
+  const dy=t.clientY-(r.top+r.height/2);
+  const d=Math.min(40,Math.hypot(dx,dy));
+  const a=Math.atan2(dy,dx);
+
+  mx=Math.cos(a)*(d/40);
+  mz=Math.sin(a)*(d/40);
+
+  stick.style.left=35+mx*40+"px";
+  stick.style.top =35+mz*40+"px";
+});
+joy.addEventListener("touchend",()=>{
+  mx=mz=0;
+  stick.style.left="35px";
+  stick.style.top="35px";
 });
 
-// ========= LOOP =========
-function loop(){
-  requestAnimationFrame(loop);
-  camera.position.x += mx * 0.15;
-  camera.position.z += mz * 0.15;
+// ================= RAYCAST =================
+const raycaster = new THREE.Raycaster();
+
+function getTarget(){
+  raycaster.setFromCamera({x:0,y:0},camera);
+  const hits = raycaster.intersectObjects(blocks.map(b=>b.mesh));
+  if(!hits.length) return null;
+  return blocks.find(b=>b.mesh===hits[0].object);
+}
+
+// ================= ACTIONS =================
+document.getElementById("mine").ontouchstart=()=>{
+  const t=getTarget();
+  if(!t || t.y===0) return;
+  scene.remove(t.mesh);
+  blocks.splice(blocks.indexOf(t),1);
+};
+
+document.getElementById("build").ontouchstart=()=>{
+  const t=getTarget();
+  if(!t) return;
+  addBlock(t.x,t.y+1,t.z);
+};
+
+// ================= LOOP =================
+function animate(){
+  requestAnimationFrame(animate);
+
+  camera.rotation.y = lookX;
+  camera.rotation.x = lookY;
+
+  camera.position.x += mx*0.15;
+  camera.position.z += mz*0.15;
+
+  if(camera.position.y<2) camera.position.y=2;
+
   renderer.render(scene,camera);
 }
-loop();
+animate();
 </script>
 
 </body>
